@@ -1,0 +1,88 @@
+# On a version tag (v1.2.3), runs CI, builds every archive and publishes them
+# as a GitHub release: macOS universal binaries and the Linux web version from
+# scripts/release.sh, and the Linux window built natively per architecture.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  macos-and-linux-web:
+    needs: ci
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: scripts/release.sh "$GITHUB_REF_NAME"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-and-linux-web
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+
+  linux-window:
+    needs: ci
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: ./scripts/linux-deps.sh
+      - name: Build
+        run: go build -tags x11 -trimpath -ldflags="-s -w" -o diskscan-ui ./cmd/diskscan-ui
+      - name: Check it draws
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1280x800x24" \
+            ./diskscan-ui -capture frame.png /usr/share
+          test -s frame.png
+      - name: Pack
+        run: |
+          mkdir -p dist
+          tar -czf "dist/diskscan-ui-$GITHUB_REF_NAME-linux-${{ matrix.arch }}.tar.gz" diskscan-ui
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-window-${{ matrix.arch }}
+          path: dist/*.tar.gz
+
+  publish:
+    needs: [macos-and-linux-web, linux-window]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: cd dist && sha256sum -- *.zip *.tar.gz > checksums.txt && cat checksums.txt
+      - name: Create the release, or update its files if it exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --verify-tag \
+              --title "diskscan $GITHUB_REF_NAME" \
+              --notes-file .github/release-notes.md --generate-notes
+          fi
