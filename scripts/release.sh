@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Builds the release archives into dist/: universal (Apple Silicon + Intel)
-# binaries of diskscan-ui and diskscan for macOS 13 and later, zipped, with
-# SHA-256 checksums.
+# binaries of diskscan-ui and diskscan for macOS 13 and later, zipped; the web
+# version (diskscan) for Linux on amd64 and arm64, as tarballs; and SHA-256
+# checksums of them all. The window (diskscan-ui) needs cgo and a Linux C
+# toolchain with OpenGL, so it is not cross-built for Linux here.
 #
 #   scripts/release.sh v0.1.0
 set -euo pipefail
@@ -34,6 +36,14 @@ for program in "diskscan-ui ./cmd/diskscan-ui" "diskscan ."; do
 	(cd dist/build && zip -q -X "../$name-$version-macos-universal.zip" "$name") # -X: no ._ attribute files
 done
 
-(cd dist && shasum -a 256 ./*.zip | sed 's| \./| |' >checksums.txt)
+# The web version is plain Go: no cgo, so it cross-builds into static binaries.
+for goarch in amd64 arm64; do
+	mkdir -p "dist/build/linux-$goarch"
+	CGO_ENABLED=0 GOOS=linux GOARCH="$goarch" \
+		go build -trimpath -ldflags="-s -w" -o "dist/build/linux-$goarch/diskscan" .
+	COPYFILE_DISABLE=1 tar -C "dist/build/linux-$goarch" -czf "dist/diskscan-$version-linux-$goarch.tar.gz" diskscan
+done
+
+(cd dist && shasum -a 256 ./*.zip ./*.tar.gz | sed 's| \./| |' >checksums.txt)
 rm -rf dist/build
 ls -l dist

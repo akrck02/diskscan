@@ -42,6 +42,15 @@ The binaries are not signed with an Apple Developer ID, so macOS blocks them the
 *"cannot be verified"*. Removing the quarantine flag as above (or right-click → **Open** in Finder)
 lets them run. If you would rather not, build them yourself (see [Building](#building)).
 
+**Linux:** the web version comes for amd64 and arm64, as static binaries with nothing else to
+install. The window is not in the release yet: it should build on Linux (go-ui falls back to OpenGL
+there) but needs cgo and the OpenGL/X11 development packages, so build it there yourself.
+
+```bash
+tar -xzf diskscan-v0.1.0-linux-amd64.tar.gz
+./diskscan -open ~
+```
+
 ## The window
 
 Folders are listed biggest first, each with a bar for its share of the folder you are in. Click a
@@ -106,8 +115,8 @@ go get github.com/akrck02/go-ui@<branch>
 go mod edit -replace github.com/akrck02/go-renderer=github.com/akrck02/go-renderer@<commit>
 ```
 
-To make the release archives (universal binaries for macOS 13+, zipped, with checksums, in
-`dist/`):
+To make the release archives in `dist/` (universal binaries for macOS 13+, the web version for
+Linux amd64 and arm64, and checksums):
 
 ```bash
 scripts/release.sh v0.1.0
