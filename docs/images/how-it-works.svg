@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" width="880" height="300" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <style>
+    .bg { fill: #ffffff; }
+    .box { fill: #f6f8fa; stroke: #d0d7de; }
+    .accent { fill: #ddf4ff; stroke: #54aeff; }
+    .title { fill: #1f2328; font-size: 15px; font-weight: 600; }
+    .text { fill: #59636e; font-size: 12.5px; }
+    .code { fill: #0969da; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .arrow { stroke: #8c959f; stroke-width: 1.6; fill: none; }
+    .head { fill: #8c959f; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d1117; }
+      .box { fill: #161b22; stroke: #30363d; }
+      .accent { fill: #0c2d4b; stroke: #1f6feb; }
+      .title { fill: #e6edf3; }
+      .text { fill: #9198a1; }
+      .code { fill: #4493f8; }
+      .arrow { stroke: #6e7681; }
+      .head { fill: #6e7681; }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="head" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="880" height="300" rx="12"/>
+
+  <!-- the disk -->
+  <rect class="box" x="24" y="105" width="150" height="90" rx="10" stroke-width="1.2"/>
+  <text class="title" x="99" y="140" text-anchor="middle">Your folder</text>
+  <text class="text" x="99" y="162" text-anchor="middle">files and folders</text>
+  <text class="text" x="99" y="179" text-anchor="middle">on disk</text>
+
+  <!-- the scanner -->
+  <path class="arrow" d="M174,150 H232" marker-end="url(#arrow)"/>
+  <rect class="accent" x="236" y="80" width="230" height="140" rx="10" stroke-width="1.4"/>
+  <text class="code" x="351" y="108" text-anchor="middle">scan/</text>
+  <text class="title" x="351" y="132" text-anchor="middle">Walks the tree once</text>
+  <text class="text" x="351" y="156" text-anchor="middle">in parallel, skipping links</text>
+  <text class="text" x="351" y="174" text-anchor="middle">and unreadable folders</text>
+  <text class="text" x="351" y="198" text-anchor="middle">keeps only folders in memory</text>
+
+  <!-- the two programs -->
+  <path class="arrow" d="M466,130 C510,130 510,72 552,72" marker-end="url(#arrow)"/>
+  <path class="arrow" d="M466,170 C510,170 510,228 552,228" marker-end="url(#arrow)"/>
+
+  <rect class="box" x="556" y="24" width="300" height="96" rx="10" stroke-width="1.2"/>
+  <text class="code" x="576" y="52">diskscan-ui</text>
+  <text class="title" x="576" y="76">A desktop window</text>
+  <text class="text" x="576" y="98">list and treemap, drawn with go-ui</text>
+
+  <rect class="box" x="556" y="180" width="300" height="96" rx="10" stroke-width="1.2"/>
+  <text class="code" x="576" y="208">diskscan</text>
+  <text class="title" x="576" y="232">A local web page</text>
+  <text class="text" x="576" y="254">served on 127.0.0.1 to your browser</text>
+</svg>
