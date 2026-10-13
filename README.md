@@ -10,119 +10,165 @@ way carries a `Co-Authored-By: Claude` line.
 **Status: pending thorough review.** The code compiles and its tests pass, but I have not yet
 reviewed it line by line. Treat it as a working draft, not as code I vouch for.
 
-## What it is
+## What it does
 
-A disk usage explorer for macOS: it walks a folder once, then lets you drill down to see what is
-taking the space. It comes in two flavours over the same scanner:
+Your disk is full and you want to know why. Point `diskscan` at a folder, wait a few seconds while
+it adds everything up, then click your way down to whatever is eating the space.
 
-- **`diskscan-ui`** — a native window drawn with [go-ui](https://github.com/akrck02/go-ui) on
-  [go-renderer](https://github.com/akrck02/go-renderer), with a list and a map of rectangles.
-- **`diskscan`** — a small local web server with the same views in your browser.
+![The treemap view](docs/images/map-light.png)
 
-![The map: every folder a rectangle whose area is its size](docs/images/map-light.png)
+There are two ways to use it, both built on the same scanner:
 
-```bash
-go build -o diskscan-ui ./cmd/diskscan-ui && ./diskscan-ui ~        # the window
-go build -o diskscan . && ./diskscan -open ~                         # the web version
-```
+- **`diskscan-ui`**: a desktop window with a sorted list and a treemap.
+- **`diskscan`**: a tiny web server, so you can browse the results in your browser.
 
-## Install
+It runs on macOS and Linux.
 
-Download the zip for the version you want from
-[Releases](https://github.com/akrck02/diskscan/releases): universal binaries (Apple Silicon and
-Intel) for macOS 13 or later.
+## Quick start
+
+On Linux, grab the archive for your machine from
+[Releases](https://github.com/akrck02/diskscan/releases):
 
 ```bash
-unzip diskscan-ui-v0.1.0-macos-universal.zip
-xattr -d com.apple.quarantine diskscan-ui    # see below
+tar -xzf diskscan-ui-v0.1.1-linux-amd64.tar.gz
 ./diskscan-ui ~
 ```
 
-The binaries are not signed with an Apple Developer ID, so macOS blocks them the first time with
-*"cannot be verified"*. Removing the quarantine flag as above (or right-click → **Open** in Finder)
-lets them run. If you would rather not, build them yourself (see [Building](#building)).
-
-**Linux:** the web version comes for amd64 and arm64, as static binaries with nothing else to
-install. The window is not in the release yet: it should build on Linux (go-ui falls back to OpenGL
-there) but needs cgo and the OpenGL/X11 development packages, so build it there yourself.
+On macOS, or if you would rather build it yourself, you need Go 1.25 or newer:
 
 ```bash
-tar -xzf diskscan-v0.1.0-linux-amd64.tar.gz
-./diskscan -open ~
+git clone https://github.com/akrck02/diskscan.git
+cd diskscan
+go build -o diskscan-ui ./cmd/diskscan-ui     # on Linux, add: -tags x11 (see Building)
+./diskscan-ui ~
 ```
 
-## The window
+## Using the window
 
-Folders are listed biggest first, each with a bar for its share of the folder you are in. Click a
-folder to go into it; the crumbs at the top take you back up. The files that sit directly in a
-folder are added up into one *(files in this folder)* line.
+```bash
+./diskscan-ui [flags] [folder]      # folder defaults to the current one
+```
 
-![The list, biggest first, with each folder's share](docs/images/list-light.png)
+The window opens straight away and scans in the background, with a counter in the status bar.
+On a home folder with a few hundred thousand folders that takes around 15 seconds.
 
-**Map** shows the same folder as a [squarified treemap](https://www.win.tue.nl/~vanwijk/stm.pdf):
-the area of each rectangle is its size, and the layout keeps them close to squares so they are
-easy to compare. Folders smaller than 0.2 % of the one on show (and anything past the 80th) share a
-grey *N smaller items* rectangle; hover any rectangle for its full name and size.
+![The list view](docs/images/list-light.png)
 
-![The map in the dark theme](docs/images/map-dark.png)
+- **Click a folder** to go into it. The path at the top takes you back up.
+- **List / Map** switches between the sorted list and the treemap. In the treemap, the area of each
+  rectangle is its size. Tiny items are lumped into one grey rectangle. Hover over any rectangle to
+  see its full name and size.
+- **Show in Finder** opens the current folder in your file manager.
+- **Rescan** scans everything again, for example after you have deleted something.
+- The sun/moon button switches between light and dark.
 
-**Show in Finder** opens the folder on show, **Rescan** walks the disk again (in the background,
-with a running count in the status bar), and the sun/moon button switches theme.
+![The treemap in the dark theme](docs/images/map-dark.png)
 
-| Flag | |
+| Flag | What it does |
 |---|---|
-| `-map` | start on the map instead of the list |
-| `-dark` | start with the dark theme |
-| `-width`, `-height` | window size |
-| `-capture shot.png` | scan, draw a single frame to a PNG and exit (how the pictures here were made) |
-| `-backend metal\|opengl` | what draws the window (Metal by default on macOS) |
+| `-map` | Start on the treemap instead of the list. |
+| `-dark` | Start in dark mode. |
+| `-width N`, `-height N` | Window size. |
+| `-capture file.png` | Scan, save one frame as a PNG and exit. Handy for screenshots and tests. |
 
-## The web version
+## Using the web version
 
-The original version, kept alongside: it serves the views on `127.0.0.1` only, and its *reveal*
-endpoint only accepts paths inside the scanned tree.
-
-![The web version's list](docs/images/web.png)
-
-| Flag | |
-|---|---|
-| `-port N` | port to serve on (default `8080`) |
-| `-open` | open the browser when the scan is done |
-
-## How it works
-
-`scan/` walks the tree once with a bounded pool of goroutines and keeps **only folders** in
-memory (each with the total of the files directly in it), so memory grows with the number of
-folders, not files. Symbolic links are not followed or counted, and folders it cannot read are
-skipped. Sizes are each file's apparent size (what `ls -l` says), not the blocks it takes on disk.
-
+```bash
+./diskscan [-port 8080] [-open] [folder]
 ```
-scan/                 the scanner, shared by both front-ends
-cmd/diskscan-ui/      the window: main.go (list, toolbar, scanning), treemap.go (the map)
-main.go, index.html   the web version
-```
+
+It scans the folder, then serves the same views at `http://127.0.0.1:8080`. `-open` opens your
+browser when the scan is done. It only listens on your own machine, never on the network.
+
+![The web version](docs/images/web.png)
+
+## Good to know
+
+- **Sizes are file sizes, as `ls -l` shows them**, not the space they take on disk. They can differ
+  for sparse files (virtual machine disks, some databases) and on compressed file systems.
+- **Symbolic links are skipped**, so nothing is counted twice and link loops cannot trap the scan.
+- **Folders you cannot read are skipped silently.** Run it with more permissions if you need
+  everything counted.
+- **The scan is a snapshot.** Use Rescan after you delete things.
+- **Memory stays small**: only folders are kept, not individual files.
+
+## Installing a release
+
+| | Linux amd64 / arm64 | macOS |
+|---|---|---|
+| Window | `diskscan-ui-<version>-linux-<arch>.tar.gz` | build from source for now |
+| Web | `diskscan-<version>-linux-<arch>.tar.gz` | build from source for now |
+
+On Linux, the web version has no dependencies. The window needs OpenGL 4.1 and X11 (XWayland is
+fine), which any desktop already has.
+
+macOS binaries can be made locally with `scripts/release.sh` (see below). They are not signed with
+an Apple Developer ID, so if you share them, the person downloading needs to run
+`xattr -d com.apple.quarantine diskscan-ui` once (or right-click it and choose **Open**).
 
 ## Building
 
-The window needs cgo and Metal or OpenGL 4.1; the web version is plain Go.
+The web version is plain Go: `go build -o diskscan .` works anywhere.
 
-Until go-renderer publishes its `draw2d` package on `main`, `go.mod` takes go-ui and go-renderer
-from their GitHub branches, and a `replace` points go-renderer at the commit go-ui needs (go-ui's
-own `replace` points at a local folder, which does not apply here). To move to newer commits:
+The window draws with OpenGL (Metal on macOS) through cgo, so it needs a C compiler:
+
+- **macOS:** the Xcode command line tools (`xcode-select --install`). Then `go build ./cmd/diskscan-ui`.
+- **Linux:** a C compiler plus the X11 and OpenGL headers. On Debian or Ubuntu,
+  `scripts/linux-deps.sh` installs them. Then build with the `x11` tag, which leaves out GLFW's
+  Wayland support (and its extra dependencies):
+
+  ```bash
+  scripts/linux-deps.sh
+  go build -tags x11 -o diskscan-ui ./cmd/diskscan-ui
+  ```
+
+Run the checks with:
+
+```bash
+go vet ./...
+go test ./...      # on Linux: go test -tags x11 ./...
+```
+
+The tests do not open any window. They cover the scanner and the treemap layout.
+
+### About the go-ui dependency
+
+The window uses [go-ui](https://github.com/akrck02/go-ui) and
+[go-renderer](https://github.com/akrck02/go-renderer), which are still in development, so `go.mod`
+pins them to commits on their feature branches instead of tagged versions. There is also a
+`replace` line for go-renderer, because go-ui points at a local copy of it. To update them:
 
 ```bash
 go get github.com/akrck02/go-ui@<branch>
 go mod edit -replace github.com/akrck02/go-renderer=github.com/akrck02/go-renderer@<commit>
 ```
 
-To make the release archives in `dist/` (universal binaries for macOS 13+, the web version for
-Linux amd64 and arm64, and checksums):
+Once go-renderer's `draw2d` package lands on `main`, the `replace` can go.
 
-```bash
-scripts/release.sh v0.1.0
+## Project layout
+
+```
+scan/              the scanner, shared by both programs (with tests)
+cmd/diskscan-ui/   the desktop window: main.go (list, toolbar, scanning) and treemap.go
+main.go            the web server
+index.html         the web page it serves
+scripts/           release.sh (macOS and Linux web archives), linux-deps.sh
+.github/workflows/ CI and releases
 ```
 
+## Releasing
+
+Push a tag and GitHub Actions does the rest:
+
 ```bash
-go vet ./...
-go test ./...      # no window needed: the scanner and the map's layout are tested on their own
+git tag -a v0.2.0 -m "diskscan v0.2.0"
+git push origin v0.2.0
 ```
+
+The [release workflow](.github/workflows/release.yml) runs the tests, builds both programs for
+Linux on amd64 and arm64 machines, checks that the window really starts (it draws a frame on a
+virtual display), and publishes a GitHub release with checksums.
+
+macOS is not in the pipeline yet, because GitHub's macOS machines can take a long time to become
+available. Build those archives locally with `scripts/release.sh v0.2.0` and attach them to the
+release by hand.

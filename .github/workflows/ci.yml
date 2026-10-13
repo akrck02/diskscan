@@ -1,5 +1,6 @@
-# Vets and tests on macOS and Linux, and proves the window starts on Linux by
-# drawing one frame on a virtual display (the PNG is kept as an artifact).
+# Vets and tests on Linux, and proves the window starts there by drawing one
+# frame on a virtual display (the PNG is kept as an artifact). macOS is checked
+# locally for now: GitHub's macOS runners queue for a long time.
 name: CI
 
 on:
@@ -13,11 +14,7 @@ permissions:
 
 jobs:
   test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -25,7 +22,6 @@ jobs:
           go-version-file: go.mod
 
       - name: Install the window's Linux libraries
-        if: runner.os == 'Linux'
         run: ./scripts/linux-deps.sh
 
       - name: Vet
@@ -34,14 +30,12 @@ jobs:
         run: go test -tags x11 ./...
 
       - name: Draw a frame of the window on a virtual display
-        if: runner.os == 'Linux'
         run: |
           go build -tags x11 -o diskscan-ui ./cmd/diskscan-ui
           LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1280x800x24" \
             ./diskscan-ui -capture window-linux.png /usr/share
           test -s window-linux.png
       - name: Keep the frame
-        if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: window-linux

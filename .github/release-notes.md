@@ -1,16 +1,17 @@
-A disk usage explorer: a native window (`diskscan-ui`, with list and treemap views) and the same
-views as a local web page (`diskscan`, served on `127.0.0.1` only).
+`diskscan` shows what is using your disk: scan a folder, then click through it as a sorted list or
+a treemap. It comes as a desktop window (`diskscan-ui`) and as a local web page (`diskscan`).
 
-| | macOS 13+ (Apple Silicon + Intel) | Linux amd64 / arm64 |
-|---|---|---|
-| Window | `diskscan-ui-…-macos-universal.zip` | `diskscan-ui-…-linux-<arch>.tar.gz` |
-| Web | `diskscan-…-macos-universal.zip` | `diskscan-…-linux-<arch>.tar.gz` |
+**Linux (amd64, arm64)**
 
-**macOS:** the binaries are not signed with an Apple Developer ID, so the first time run
-`xattr -d com.apple.quarantine diskscan-ui` (or right-click → Open in Finder).
+```bash
+tar -xzf diskscan-ui-<version>-linux-amd64.tar.gz
+./diskscan-ui ~
+```
 
-**Linux:** the web version is a static binary. The window needs OpenGL 4.1 and X11 (or XWayland),
-which any desktop has.
+- `diskscan-ui` needs OpenGL 4.1 and X11 (XWayland works), which any desktop has.
+- `diskscan` is a static binary with no dependencies; it serves on `127.0.0.1:8080`.
 
-SHA-256 checksums are in `checksums.txt`. Written with an AI assistant and pending thorough
-review — see the AI disclosure in the README.
+**macOS:** not in the release yet; build from source (see the README).
+
+Checksums are in `checksums.txt`. This project was written with an AI assistant and is pending
+review; see the README.
