@@ -130,9 +130,18 @@ func (app *app) rescan() {
 	app.directories.Store(0)
 	start := time.Now()
 	tree := scan.Tree(app.path, &app.directories)
-	status := fmt.Sprintf("Scanned %d directories in %s", app.directories.Load(), time.Since(start).Round(time.Millisecond))
+	status := fmt.Sprintf("Scanned %d directories in %s", app.directories.Load(), roundDuration(time.Since(start)))
 	app.lastScan.Store(&status)
 	app.tree.Store(tree)
+}
+
+// roundDuration keeps a duration short to read: milliseconds, or microseconds
+// for a scan so small it would otherwise read "0s".
+func roundDuration(duration time.Duration) time.Duration {
+	if duration < time.Millisecond {
+		return duration.Round(time.Microsecond)
+	}
+	return duration.Round(time.Millisecond)
 }
 
 // currentNode is the folder on show in the latest tree. A rescan can lose the
