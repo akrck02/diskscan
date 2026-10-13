@@ -2,7 +2,7 @@ module diskscan
 
 go 1.25.6
 
-replace github.com/akrck02/go-renderer => github.com/akrck02/go-renderer v0.0.0-20261012195005-dcc03841ab18
+replace github.com/akrck02/go-renderer => github.com/akrck02/go-renderer v0.0.0-20261013195537-83dcce58bc27
 
 require (
 	github.com/akrck02/go-renderer v0.0.0
