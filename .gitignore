@@ -1,0 +1,6 @@
+# compiled binaries
+/diskscan
+/diskscan-ui
+
+# captures from -capture
+*.png

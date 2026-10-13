@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>diskscan</title>
+<style>
+  :root {
+    --bg: #0f1216;
+    --panel: #171b21;
+    --panel-2: #1e242c;
+    --text: #e6e9ef;
+    --muted: #8b95a5;
+    --line: #2a313b;
+    --accent: #5aa9ff;
+    --bar: #3a4a63;
+    --bar-file: #4a5568;
+    --bar-hot: #ff6b6b;
+    --bar-warm: #ffa94d;
+    --tile-text: #0f1216;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5;
+      --text: #1a1d23; --muted: #6b7280; --line: #e3e6ea;
+      --accent: #2563eb; --bar: #b9c6dc; --bar-file: #cbd2dc;
+      --bar-hot: #e5484d; --bar-warm: #f08c00; --tile-text: #0f1216;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  header {
+    padding: 16px 24px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: var(--panel);
+  }
+  h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  h1 .dot { color: var(--accent); }
+  .total { color: var(--muted); font-size: 13px; }
+  .spacer { flex: 1; }
+  .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .toggle button {
+    background: transparent; color: var(--muted); border: 0; cursor: pointer;
+    padding: 6px 14px; font: inherit; font-size: 13px;
+  }
+  .toggle button.active { background: var(--accent); color: #fff; }
+  .rescan {
+    background: transparent; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 8px; cursor: pointer; font: inherit; font-size: 13px; padding: 6px 12px;
+  }
+  .rescan:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
+  .rescan:disabled { opacity: .6; cursor: progress; }
+  main { max-width: 1000px; margin: 0 auto; padding: 20px 24px 60px; }
+  nav.crumbs {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+    font-size: 13px; margin-bottom: 18px; word-break: break-all;
+  }
+  nav.crumbs a {
+    color: var(--accent); text-decoration: none; cursor: pointer;
+    padding: 2px 6px; border-radius: 6px;
+  }
+  nav.crumbs a:hover { background: var(--panel-2); }
+  nav.crumbs .sep { color: var(--muted); }
+  nav.crumbs .cur { color: var(--text); padding: 2px 6px; }
+
+  /* --- list view --- */
+  ul.rows { list-style: none; margin: 0; padding: 0; }
+  li.row {
+    position: relative; padding: 11px 14px; border-radius: 10px;
+    margin-bottom: 6px; background: var(--panel);
+    border: 1px solid transparent; overflow: hidden;
+    display: flex; align-items: center; gap: 12px;
+  }
+  li.row .fill {
+    position: absolute; inset: 0 auto 0 0; border-radius: 10px;
+    background: var(--bar); opacity: .35; z-index: 0; transition: width .35s ease;
+  }
+  li.row.file .fill { background: var(--bar-file); }
+  li.row.dir { cursor: pointer; }
+  li.row.dir:hover { border-color: var(--line); }
+  li.row.dir:hover .fill { opacity: .5; }
+  li.row > * { position: relative; z-index: 1; }
+  .icon { width: 20px; text-align: center; flex: none; opacity: .85; }
+  .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta { color: var(--muted); font-size: 12px; flex: none; }
+  .size { font-variant-numeric: tabular-nums; font-weight: 600; flex: none; min-width: 84px; text-align: right; }
+  .pct  { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; flex: none; min-width: 44px; text-align: right; }
+  .reveal {
+    flex: none; background: transparent; border: 1px solid var(--line); color: var(--muted);
+    border-radius: 7px; cursor: pointer; font: inherit; font-size: 12px; padding: 3px 8px;
+    opacity: 0; transition: opacity .12s;
+  }
+  li.row:hover .reveal { opacity: 1; }
+  .reveal:hover { color: var(--text); border-color: var(--accent); }
+  .chev { color: var(--muted); flex: none; }
+
+  /* --- treemap view --- */
+  #treemap { position: relative; width: 100%; border-radius: 12px; overflow: hidden; }
+  .tile {
+    position: absolute; overflow: hidden; border-radius: 6px;
+    padding: 6px 8px; cursor: default; color: var(--tile-text);
+    display: flex; flex-direction: column; justify-content: flex-start;
+    transition: outline .1s;
+  }
+  .tile.dir { cursor: pointer; }
+  .tile:hover { outline: 2px solid #ffffffcc; outline-offset: -2px; z-index: 5; }
+  .tile .t-name { font-size: 12px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .t-size { font-size: 11px; opacity: .8; font-variant-numeric: tabular-nums; }
+  .tile .t-reveal {
+    position: absolute; top: 4px; right: 4px; background: #ffffffcc; color: #0f1216;
+    border: 0; border-radius: 6px; cursor: pointer; font-size: 11px; padding: 2px 6px;
+    opacity: 0; transition: opacity .12s;
+  }
+  .tile:hover .t-reveal { opacity: 1; }
+
+  .empty, #status { color: var(--muted); padding: 40px 0; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="dot">◆</span> diskscan</h1>
+  <span class="total" id="rootTotal"></span>
+  <span class="spacer"></span>
+  <button id="btnRescan" class="rescan" onclick="rescan()" title="Re-scan the disk from scratch">↻ Recalculate</button>
+  <span class="toggle">
+    <button id="btnList" class="active" onclick="setMode('list')">List</button>
+    <button id="btnMap" onclick="setMode('treemap')">Treemap</button>
+  </span>
+</header>
+<main>
+  <nav class="crumbs" id="crumbs"></nav>
+  <div id="status">loading…</div>
+  <ul class="rows" id="rows" hidden></ul>
+  <div id="treemap" hidden></div>
+</main>
+
+<script>
+let currentView = null;          // last payload from /api/view
+let mode = "list";               // "list" | "treemap"
+
+const fmtBytes = (b) => {
+  if (b < 1024) return b + " B";
+  const u = ["KiB","MiB","GiB","TiB","PiB"];
+  let i = -1;
+  do { b /= 1024; i++; } while (b >= 1024 && i < u.length - 1);
+  return b.toFixed(1) + " " + u[i];
+};
+
+// Bar/tile color by share of the parent: hot for dominant items.
+const shareColor = (frac) => {
+  if (frac >= 0.5) return "var(--bar-hot)";
+  if (frac >= 0.25) return "var(--bar-warm)";
+  return null;
+};
+
+async function reveal(path, ev) {
+  if (ev) ev.stopPropagation();
+  try { await fetch("/api/reveal?path=" + encodeURIComponent(path), { method: "POST" }); }
+  catch (_) { /* best effort */ }
+}
+
+async function load(path) {
+  const status = document.getElementById("status");
+  document.getElementById("rows").hidden = true;
+  document.getElementById("treemap").hidden = true;
+  status.hidden = false;
+  status.textContent = "loading…";
+  try {
+    const url = "/api/view" + (path ? "?path=" + encodeURIComponent(path) : "");
+    let res = await fetch(url);
+    // If the folder disappeared (e.g. after a rescan), fall back to the root.
+    if (!res.ok && path) { res = await fetch("/api/view"); if (res.ok) history.replaceState({}, "", "#"); }
+    if (!res.ok) throw new Error(await res.text());
+    currentView = await res.json();
+    renderCrumbs(currentView);
+    renderBody();
+  } catch (e) {
+    status.textContent = "error: " + e.message;
+  }
+}
+
+async function rescan() {
+  const btn = document.getElementById("btnRescan");
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "↻ Rescanning…";
+  try {
+    const res = await fetch("/api/rescan", { method: "POST" });
+    if (!res.ok) throw new Error(await res.text());
+    const info = await res.json();
+    document.getElementById("rootTotal").textContent = fmtBytes(info.size) + " total";
+    await load(currentView ? currentView.path : "");
+  } catch (e) {
+    document.getElementById("status").textContent = "rescan failed: " + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+}
+
+function renderCrumbs(view) {
+  if (view.crumbs.length === 1) {
+    document.getElementById("rootTotal").textContent = fmtBytes(view.size) + " total";
+  }
+  const nav = document.getElementById("crumbs");
+  nav.innerHTML = "";
+  view.crumbs.forEach((c, i) => {
+    if (i) {
+      const sep = document.createElement("span");
+      sep.className = "sep"; sep.textContent = "›";
+      nav.appendChild(sep);
+    }
+    if (i === view.crumbs.length - 1) {
+      const cur = document.createElement("span");
+      cur.className = "cur"; cur.textContent = c.name;
+      nav.appendChild(cur);
+    } else {
+      const a = document.createElement("a");
+      a.textContent = c.name;
+      a.onclick = () => go(c.path);
+      nav.appendChild(a);
+    }
+  });
+}
+
+function renderBody() {
+  const status = document.getElementById("status");
+  const rows = document.getElementById("rows");
+  const map = document.getElementById("treemap");
+  rows.hidden = true; map.hidden = true;
+
+  if (!currentView.children.length) {
+    status.hidden = false;
+    status.textContent = "this folder is empty (or unreadable)";
+    return;
+  }
+  status.hidden = true;
+  if (mode === "list") { rows.hidden = false; renderList(); }
+  else { map.hidden = false; renderTreemap(); }
+}
+
+function renderList() {
+  const rows = document.getElementById("rows");
+  rows.innerHTML = "";
+  const max = currentView.children[0].size || 1;
+  const parentTotal = currentView.size || 1;
+
+  for (const c of currentView.children) {
+    const li = document.createElement("li");
+    li.className = "row " + (c.isDir ? "dir" : "file");
+
+    const fill = document.createElement("div");
+    fill.className = "fill";
+    fill.style.width = ((c.size / max) * 100).toFixed(1) + "%";
+    const col = shareColor(c.size / parentTotal);
+    if (col) fill.style.background = col;
+    li.appendChild(fill);
+
+    const icon = document.createElement("span");
+    icon.className = "icon";
+    icon.textContent = c.isDir ? "📁" : "📄";
+    li.appendChild(icon);
+
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = c.name;
+    li.appendChild(name);
+
+    if (c.numFiles) {
+      const meta = document.createElement("span");
+      meta.className = "meta";
+      meta.textContent = c.numFiles + " file" + (c.numFiles > 1 ? "s" : "");
+      li.appendChild(meta);
+    }
+
+    const rev = document.createElement("button");
+    rev.className = "reveal";
+    rev.textContent = "⤴ Finder";
+    rev.title = "Reveal in Finder";
+    rev.onclick = (e) => reveal(c.path, e);
+    li.appendChild(rev);
+
+    const pct = document.createElement("span");
+    pct.className = "pct";
+    pct.textContent = ((c.size / parentTotal) * 100).toFixed(0) + "%";
+    li.appendChild(pct);
+
+    const size = document.createElement("span");
+    size.className = "size";
+    size.textContent = fmtBytes(c.size);
+    li.appendChild(size);
+
+    if (c.isDir) {
+      const chev = document.createElement("span");
+      chev.className = "chev";
+      chev.textContent = "›";
+      li.appendChild(chev);
+      li.onclick = () => go(c.path);
+    }
+    rows.appendChild(li);
+  }
+}
+
+// --- Squarified treemap ------------------------------------------------------
+// Classic squarify: greedily pack children into rows against the shorter side,
+// keeping tiles as close to square as possible.
+function squarify(items, X, Y, W, H) {
+  const out = [];
+  const total = items.reduce((s, i) => s + i.size, 0) || 1;
+  const area = W * H;
+  const nodes = items
+    .filter(i => i.size > 0)
+    .map(i => ({ item: i, v: (i.size / total) * area }));
+
+  let x = X, y = Y, w = W, h = H;
+  let row = [];
+
+  const worst = (row, side) => {
+    const s = row.reduce((a, b) => a + b.v, 0);
+    const mx = Math.max(...row.map(r => r.v));
+    const mn = Math.min(...row.map(r => r.v));
+    return Math.max((side * side * mx) / (s * s), (s * s) / (side * side * mn));
+  };
+  const layout = (row) => {
+    const s = row.reduce((a, b) => a + b.v, 0);
+    if (w >= h) {                 // stack this row vertically in a column
+      const dw = s / h;
+      let oy = y;
+      for (const r of row) { const dh = r.v / s * h; out.push({ item: r.item, x, y: oy, w: dw, h: dh }); oy += dh; }
+      x += dw; w -= dw;
+    } else {                      // lay this row horizontally
+      const dh = s / w;
+      let ox = x;
+      for (const r of row) { const dw = r.v / s * w; out.push({ item: r.item, x: ox, y, w: dw, h: dh }); ox += dw; }
+      y += dh; h -= dh;
+    }
+  };
+
+  let i = 0;
+  while (i < nodes.length) {
+    const side = Math.min(w, h);
+    if (side <= 0) break;
+    if (row.length === 0) { row.push(nodes[i++]); continue; }
+    if (worst(row, side) >= worst(row.concat(nodes[i]), side)) row.push(nodes[i++]);
+    else { layout(row); row = []; }
+  }
+  if (row.length) layout(row);
+  return out;
+}
+
+function renderTreemap() {
+  const map = document.getElementById("treemap");
+  map.innerHTML = "";
+  const W = map.clientWidth || 900;
+  const H = Math.max(360, Math.round(window.innerHeight * 0.6));
+  map.style.height = H + "px";
+  const parentTotal = currentView.size || 1;
+
+  const rects = squarify(currentView.children, 0, 0, W, H);
+  const GAP = 2;
+  for (const r of rects) {
+    const c = r.item;
+    const tile = document.createElement("div");
+    tile.className = "tile " + (c.isDir ? "dir" : "file");
+    tile.style.left = (r.x + GAP) + "px";
+    tile.style.top = (r.y + GAP) + "px";
+    tile.style.width = Math.max(0, r.w - GAP * 2) + "px";
+    tile.style.height = Math.max(0, r.h - GAP * 2) + "px";
+    const col = shareColor(c.size / parentTotal);
+    tile.style.background = col || (c.isDir ? "var(--bar)" : "var(--bar-file)");
+    tile.title = c.name + " — " + fmtBytes(c.size);
+
+    // Only label tiles with room for text.
+    if (r.w > 54 && r.h > 26) {
+      const nm = document.createElement("div");
+      nm.className = "t-name"; nm.textContent = c.name;
+      tile.appendChild(nm);
+      if (r.h > 40) {
+        const sz = document.createElement("div");
+        sz.className = "t-size"; sz.textContent = fmtBytes(c.size);
+        tile.appendChild(sz);
+      }
+    }
+    const rev = document.createElement("button");
+    rev.className = "t-reveal"; rev.textContent = "⤴";
+    rev.title = "Reveal in Finder";
+    rev.onclick = (e) => reveal(c.path, e);
+    tile.appendChild(rev);
+
+    if (c.isDir) tile.onclick = () => go(c.path);
+    map.appendChild(tile);
+  }
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById("btnList").classList.toggle("active", m === "list");
+  document.getElementById("btnMap").classList.toggle("active", m === "treemap");
+  if (currentView) renderBody();
+}
+
+// Navigate with history support so the back button works.
+function go(path) {
+  history.pushState({ path }, "", "#" + encodeURIComponent(path));
+  load(path);
+}
+window.onpopstate = (e) => load(e.state ? e.state.path : "");
+window.addEventListener("resize", () => { if (mode === "treemap" && currentView) renderTreemap(); });
+
+const initial = location.hash ? decodeURIComponent(location.hash.slice(1)) : "";
+load(initial);
+</script>
+</body>
+</html>

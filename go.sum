@@ -1,0 +1,14 @@
+github.com/akrck02/go-renderer v0.0.0-20261012195005-dcc03841ab18 h1:qU7vcY4Z5bIFCnVoC3X19Do5cn71eTPPZsO33DX8lJI=
+github.com/akrck02/go-renderer v0.0.0-20261012195005-dcc03841ab18/go.mod h1:Z835tJYTrI/B+rxk5BbIMsDFokk+P36R8kZ0CVbEZzA=
+github.com/akrck02/go-ui v0.0.0-20261012201246-a34adde9e2b6 h1:0jXCIU+4hOlzHq0aIdIZtzNOt33/OZCqVjIm+mBjWVI=
+github.com/akrck02/go-ui v0.0.0-20261012201246-a34adde9e2b6/go.mod h1:a0uwlVS2H8pinhpefogGLjLYwfwcgFD/iriCHCxU3CI=
+github.com/go-gl/gl v0.0.0-20260331235117-4566fea9a276 h1:IO5P06Pcj9K04d+l4nrf3c2U56+dAotIFG6u4P1wAHI=
+github.com/go-gl/gl v0.0.0-20260331235117-4566fea9a276/go.mod h1:9YTyiznxEY1fVinfM7RvRcjRHbw2xLBJ3AAGIT0I4Nw=
+github.com/go-gl/glfw/v3.4/glfw v0.1.0-pre.1 h1:nIVzcwqIaO1mK8LFr0fGkKpgQD4wJDDHRyv4t5k40Ps=
+github.com/go-gl/glfw/v3.4/glfw v0.1.0-pre.1/go.mod h1:T5Dn0JwIJOX1euPZ/iT4tq6nFYtmukjcYa7937HuYK8=
+golang.org/x/image v0.45.0 h1:FMb1nTbH5H9vF55SriQHgFw5GnNL9Jg6L25BwXKzhB0=
+golang.org/x/image v0.45.0/go.mod h1:n62x/7RqlwXDvGsSU4u6IUTUf6KghUZ9Bt7cG/T9Fx4=
+golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=
+golang.org/x/sys v0.47.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
+golang.org/x/text v0.41.0 h1:vz/seA0lnX87Othu2f/0L24RcgrXD9/YFTSuGjj3rH8=
+golang.org/x/text v0.41.0/go.mod h1:jvf1O8ajNzZqhSrQBPbutR/EB83Cc0CFrezNQIwbb5M=
