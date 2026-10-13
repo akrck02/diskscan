@@ -1,6 +1,6 @@
 <div align="center">
 
-# diskscan
+# Disk scan
 
 **Find out what is filling your disk.** Scan a folder, then click your way down through a sorted
 list or a treemap.
