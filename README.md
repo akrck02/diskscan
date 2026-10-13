@@ -26,6 +26,22 @@ go build -o diskscan-ui ./cmd/diskscan-ui && ./diskscan-ui ~        # the window
 go build -o diskscan . && ./diskscan -open ~                         # the web version
 ```
 
+## Install
+
+Download the zip for the version you want from
+[Releases](https://github.com/akrck02/diskscan/releases): universal binaries (Apple Silicon and
+Intel) for macOS 13 or later.
+
+```bash
+unzip diskscan-ui-v0.1.0-macos-universal.zip
+xattr -d com.apple.quarantine diskscan-ui    # see below
+./diskscan-ui ~
+```
+
+The binaries are not signed with an Apple Developer ID, so macOS blocks them the first time with
+*"cannot be verified"*. Removing the quarantine flag as above (or right-click → **Open** in Finder)
+lets them run. If you would rather not, build them yourself (see [Building](#building)).
+
 ## The window
 
 Folders are listed biggest first, each with a bar for its share of the folder you are in. Click a
@@ -88,6 +104,13 @@ own `replace` points at a local folder, which does not apply here). To move to n
 ```bash
 go get github.com/akrck02/go-ui@<branch>
 go mod edit -replace github.com/akrck02/go-renderer=github.com/akrck02/go-renderer@<commit>
+```
+
+To make the release archives (universal binaries for macOS 13+, zipped, with checksums, in
+`dist/`):
+
+```bash
+scripts/release.sh v0.1.0
 ```
 
 ```bash

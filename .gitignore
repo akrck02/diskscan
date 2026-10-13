@@ -4,3 +4,6 @@
 
 # captures from -capture
 /*.png
+
+# release archives (scripts/release.sh)
+/dist/
