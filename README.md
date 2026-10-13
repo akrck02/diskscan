@@ -1,7 +1,16 @@
 # diskscan
 
-> **Note:** this project was written with an AI assistant and is pending thorough review. See the
-> [AI disclosure](#ai-disclosure).
+## AI disclosure
+
+I write most of my code by hand, so I want to be clear about this project: **it was written by an
+AI assistant (Claude, by Anthropic) under my direction.** I decided what to build and how it should
+behave; the code, the tests and the documentation were written by the AI. Every commit made this
+way carries a `Co-Authored-By: Claude` line.
+
+**Status: pending thorough review.** The code compiles and its tests pass, but I have not yet
+reviewed it line by line. Treat it as a working draft, not as code I vouch for.
+
+## What it is
 
 A disk usage explorer for macOS: it walks a folder once, then lets you drill down to see what is
 taking the space. It comes in two flavours over the same scanner:
@@ -85,13 +94,3 @@ go mod edit -replace github.com/akrck02/go-renderer=github.com/akrck02/go-render
 go vet ./...
 go test ./...      # no window needed: the scanner and the map's layout are tested on their own
 ```
-
-## AI disclosure
-
-I write most of my code by hand, so I want to be clear about this project: **it was written by an
-AI assistant (Claude, by Anthropic) under my direction.** I decided what to build and how it should
-behave; the code, the tests and the documentation were written by the AI. Every commit made this
-way carries a `Co-Authored-By: Claude` line.
-
-**Status: pending thorough review.** The code compiles and its tests pass, but I have not yet
-reviewed it line by line. Treat it as a working draft, not as code I vouch for.
