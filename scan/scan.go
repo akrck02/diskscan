@@ -36,25 +36,34 @@ type scanner struct {
 	sem      chan struct{}
 	wg       sync.WaitGroup
 	dirCount *atomic.Int64
+	measure  func(fs.FileInfo) int64
+	seen     sync.Map // files with more than one hard link, already counted
 }
 
-func newScanner(dirCount *atomic.Int64) *scanner {
+func newScanner(dirCount *atomic.Int64, measure func(fs.FileInfo) int64) *scanner {
 	limit := runtime.NumCPU() * 4
 	if limit < 8 {
 		limit = 8
 	}
-	return &scanner{sem: make(chan struct{}, limit), dirCount: dirCount}
+	return &scanner{sem: make(chan struct{}, limit), dirCount: dirCount, measure: measure}
 }
 
 // Tree walks the tree rooted at the absolute path abs and returns a fully-sized
-// root node. dirCount, when not nil, is bumped once per directory read, so a
-// caller on another goroutine can show progress while the walk runs.
+// root node. Sizes are the space files take on disk, like du. dirCount, when
+// not nil, is bumped once per directory read, so a caller on another goroutine
+// can show progress while the walk runs.
 func Tree(abs string, dirCount *atomic.Int64) *Node {
+	return treeMeasuring(abs, dirCount, diskUsage)
+}
+
+// treeMeasuring is Tree with the way a file is measured passed in, so the
+// tests can add up exact byte counts instead of whole disk blocks.
+func treeMeasuring(abs string, dirCount *atomic.Int64, measure func(fs.FileInfo) int64) *Node {
 	if dirCount == nil {
 		dirCount = new(atomic.Int64)
 	}
 	root := &Node{Name: filepath.Base(abs), Path: abs}
-	s := newScanner(dirCount)
+	s := newScanner(dirCount, measure)
 	s.wg.Add(1)
 	s.scan(root)
 	s.wg.Wait()
@@ -106,8 +115,13 @@ func (s *scanner) scan(n *Node) {
 		if info.Mode()&fs.ModeSymlink != 0 {
 			continue // don't count symlinked files
 		}
+		if key, linked := hardLinkKey(info); linked {
+			if _, counted := s.seen.LoadOrStore(key, struct{}{}); counted {
+				continue // another name for a file already counted
+			}
+		}
 		n.mu.Lock()
-		n.FilesSize += info.Size()
+		n.FilesSize += s.measure(info)
 		n.FileCount++
 		n.mu.Unlock()
 	}

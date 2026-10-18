@@ -23,11 +23,14 @@ finds a folder by path, and `Crumbs` builds the path at the top of the window.
 ## What the sizes mean
 
 > [!NOTE]
-> Sizes are **file sizes as `ls -l` shows them**, not the space they take on disk (what `du`
-> shows). The two are usually close, but they differ for:
-> - **sparse files**, such as virtual machine disks and some databases, which can look far larger
->   than they are;
-> - **compressed or deduplicated file systems**, and APFS clones, where files share blocks.
+> Sizes are the **space files take on disk**, as `du` counts it, not the file sizes `ls -l`
+> shows. The two are usually close, but they differ for:
+> - **sparse files**, such as virtual machine disks and some databases, which look far larger
+>   than they are: a 24 GB Docker disk can take only 8 GB, and diskscan shows the 8;
+> - **hard links**: a file with several names is counted once, in the first folder the scan
+>   reaches it from;
+> - **compressed or deduplicated file systems**, and APFS clones, where files share blocks. Each
+>   clone is still counted in full.
 
 The scan also leaves some things out on purpose:
 

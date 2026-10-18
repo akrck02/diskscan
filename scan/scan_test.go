@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -16,6 +17,12 @@ func writeFile(t *testing.T, path string, size int) {
 	if err := os.WriteFile(path, make([]byte, size), 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// exactTree scans root counting each file's size in bytes, so the tests can
+// check the adding up without depending on the file system's block size.
+func exactTree(root string, dirCount *atomic.Int64) *Node {
+	return treeMeasuring(root, dirCount, func(info fs.FileInfo) int64 { return info.Size() })
 }
 
 // sampleTree builds:
@@ -41,7 +48,7 @@ func sampleTree(t *testing.T) string {
 func TestTreeAddsUpSizesRecursively(t *testing.T) {
 	root := sampleTree(t)
 	var directories atomic.Int64
-	tree := Tree(root, &directories)
+	tree := exactTree(root, &directories)
 
 	if tree.Size != 1630 {
 		t.Errorf("root size = %d, want 1630", tree.Size)
@@ -63,7 +70,7 @@ func TestTreeAddsUpSizesRecursively(t *testing.T) {
 }
 
 func TestTreeAcceptsNoCounter(t *testing.T) {
-	if tree := Tree(sampleTree(t), nil); tree.Size != 1630 {
+	if tree := exactTree(sampleTree(t), nil); tree.Size != 1630 {
 		t.Errorf("size = %d, want 1630", tree.Size)
 	}
 }
@@ -82,7 +89,7 @@ func TestTreeSkipsSymbolicLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tree := Tree(root, nil)
+	tree := exactTree(root, nil)
 	if tree.Size != 1630 {
 		t.Errorf("size = %d, want 1630 (links not followed nor counted)", tree.Size)
 	}
@@ -102,7 +109,7 @@ func TestTreeSkipsUnreadableFolders(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) }) // so TempDir can remove it
 
-	tree := Tree(root, nil)
+	tree := exactTree(root, nil)
 	if tree.Size != 1130 {
 		t.Errorf("size = %d, want 1130 (the 500 behind the locked folder unseen)", tree.Size)
 	}
@@ -113,7 +120,7 @@ func TestTreeSkipsUnreadableFolders(t *testing.T) {
 
 func TestLookup(t *testing.T) {
 	root := sampleTree(t)
-	tree := Tree(root, nil)
+	tree := exactTree(root, nil)
 
 	cases := []struct {
 		name, path string
@@ -141,7 +148,7 @@ func TestLookup(t *testing.T) {
 }
 
 func TestEntriesAreBiggestFirstWithTheFilesBucket(t *testing.T) {
-	tree := Tree(sampleTree(t), nil)
+	tree := exactTree(sampleTree(t), nil)
 	entries := tree.Entries()
 
 	want := []struct {
@@ -171,7 +178,7 @@ func TestEntriesAreBiggestFirstWithTheFilesBucket(t *testing.T) {
 func TestEntriesLeaveOutAnEmptyFilesBucket(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "only", "x.bin"), 5)
-	for _, entry := range Tree(root, nil).Entries() {
+	for _, entry := range exactTree(root, nil).Entries() {
 		if !entry.IsDir {
 			t.Errorf("a folder with no files of its own got a files bucket: %+v", entry)
 		}
@@ -180,7 +187,7 @@ func TestEntriesLeaveOutAnEmptyFilesBucket(t *testing.T) {
 
 func TestCrumbs(t *testing.T) {
 	root := sampleTree(t)
-	tree := Tree(root, nil)
+	tree := exactTree(root, nil)
 
 	crumbs := Crumbs(tree, Lookup(tree, filepath.Join(root, "big", "deep")))
 	want := []Crumb{
@@ -246,5 +253,36 @@ func TestHumanBytes(t *testing.T) {
 		if got := HumanBytes(bytes); got != want {
 			t.Errorf("HumanBytes(%d) = %q, want %q", bytes, got, want)
 		}
+	}
+}
+
+func TestTreeCountsTheSpaceOnDisk(t *testing.T) {
+	root := t.TempDir()
+	// A sparse file: 64 MiB long, but only its last byte is ever written.
+	sparse, err := os.Create(filepath.Join(root, "disk.img"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sparse.WriteAt([]byte{1}, 64<<20-1); err != nil {
+		t.Fatal(err)
+	}
+	if err := sparse.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if size := Tree(root, nil).Size; size <= 0 || size >= 1<<20 {
+		t.Errorf("size = %d, want the few blocks the sparse file uses, not its 64 MiB", size)
+	}
+}
+
+func TestTreeCountsHardLinkedFilesOnce(t *testing.T) {
+	root := sampleTree(t)
+	if err := os.Link(filepath.Join(root, "big", "b.bin"), filepath.Join(root, "small", "b-again.bin")); err != nil {
+		t.Fatal(err)
+	}
+
+	tree := exactTree(root, nil)
+	if tree.Size != 1630 {
+		t.Errorf("size = %d, want 1630 (the second name adds nothing)", tree.Size)
 	}
 }
